@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.app.ActivityManager.RunningAppProcessInfo;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.os.Build;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -478,7 +479,27 @@ public class TwilioVoiceModule extends ReactContextBaseJavaModule implements Act
         intentFilter.addAction(Constants.ACTION_HANGUP_CALL);
         intentFilter.addAction(Constants.ACTION_CLEAR_MISSED_CALLS_COUNT);
 
-        getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+            && getReactApplicationContext().getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String action = intent.getAction();
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG, "BroadcastReceiver.onReceive() action: " + action);
+                    }
+                    switch (action) {
+                        case Constants.ACTION_HANGUP_CALL:
+                            disconnect();
+                            break;
+                        case Constants.ACTION_CLEAR_MISSED_CALLS_COUNT:
+                            removeMissedCalls();
+                            break;
+                    }
+                }
+            }, intentFilter, Context.RECEIVER_EXPORTED);
+        } else {
+            getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
@@ -494,7 +515,8 @@ public class TwilioVoiceModule extends ReactContextBaseJavaModule implements Act
                         break;
                 }
             }
-        }, intentFilter);
+            }, intentFilter);
+        }
     }
 
     // removed @Override temporarily just to get it working on different versions of RN
